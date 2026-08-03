@@ -1,9 +1,17 @@
-const allCrops = ['Moth Beans', 'Mung Beans', 'Lentils', 
-    'Rices', 'Jutes', 'Bananas', 'Pomegranates', 
-    'Blackgrams', 'Grapes', 'Oranges', 'Papayas', 
-    'Mangos', 'Coffees', 'Chickpeas', 'Cotton', 
-    'Maize', 'Apples', 'Coconuts', 'Kidney Beans', 
-    'Muskmelons', 'Watermelons', 'Pigeon Peas'];
+// Display names for the model's 22 output classes, in index order.
+//
+// The order is the alphabetical label encoding of the crop-recommendation
+// dataset the model was trained on — the same 22 labels that name the files in
+// backend/cropTexts/. Two things depend on this list staying in that order:
+// the index -> crop mapping, and the growing-notes lookup, which lowercases a
+// name and strips spaces to build the filename ("Kidney Beans" ->
+// kidneybeans.txt). The previous list was in an arbitrary order with
+// pluralised names, so predictions could label the wrong crop and most
+// growing-notes fetches 404'd ("Rices" -> rices.txt, which doesn't exist).
+const allCrops = ['Apple', 'Banana', 'Blackgram', 'Chickpea', 'Coconut',
+    'Coffee', 'Cotton', 'Grapes', 'Jute', 'Kidney Beans', 'Lentil',
+    'Maize', 'Mango', 'Moth Beans', 'Mung Bean', 'Muskmelon', 'Orange',
+    'Papaya', 'Pigeon Peas', 'Pomegranate', 'Rice', 'Watermelon'];
 
 document.addEventListener("DOMContentLoaded", function () {
     const columns = document.querySelectorAll(".column");
@@ -30,6 +38,13 @@ document.addEventListener("DOMContentLoaded", function () {
 // from a fetch, so reading them synchronously right after the call returned nulls and
 // the model was asked to predict on temperature=0, humidity=0, rainfall=0.
 async function makeAIRequest() {
+    // Arriving here without picking a location on the landing page would
+    // otherwise fetch weather for (0, 0) — Number(null) is 0 — and predict for
+    // a point in the Gulf of Guinea.
+    if (localStorage.getItem("latitude") === null || localStorage.getItem("longitude") === null) {
+        document.getElementById('crop1').innerText = "No location saved yet — go back to the landing page and pick a point on the map first.";
+        return;
+    }
     const weather = await getWeather();
     const params = new URLSearchParams({
         nitrogen: 90,
@@ -64,9 +79,9 @@ async function makeAIRequest() {
             var ind = allCrops.indexOf(ranked[0].crop);
 
             {
-                document.getElementById('crop1').innerText = "The best crop in your location is " + ranked[0].crop + "!";
-                document.getElementById('crop2').innerText = "Another crop that will thrive in your area are " + ranked[1].crop + ".";
-                document.getElementById('crop3').innerText = "Another crop that will thrive in your area are " + ranked[2].crop + ".";
+                document.getElementById('crop1').innerText = "The best crop for your location is " + ranked[0].crop + "!";
+                document.getElementById('crop2').innerText = "Another crop that will thrive in your area is " + ranked[1].crop + ".";
+                document.getElementById('crop3').innerText = ranked[2].crop + " is also a strong match for your conditions.";
                 var str = allCrops[ind];
                 str = str.toLowerCase();
                 for (var x = 0; x < str.length; x++) {
@@ -124,8 +139,4 @@ async function getWeather() {
     document.getElementById('rain').innerText = "Rainfall in millimeters: " + rainfall;
 
     return { temp: temp, humidity: humidity, rainfall: rainfall };
-}
-
-function getSoil() {
-    
 }

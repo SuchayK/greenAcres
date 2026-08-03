@@ -125,14 +125,14 @@ Honest about what a two-day competition build didn't get to:
   `90 / 42 / 43 / 6.75` in `ai.js` — only temperature, humidity and rainfall come from your
   location. We couldn't find a free soil API with the coverage we needed (see `apiLinks.txt`).
   Predictions therefore vary with climate but not with your actual soil.
-- **The crop-to-index mapping is unverified.** The 22 model outputs are matched to the crop
-  names in `allCrops` by position, but the training notebook that fixed that ordering isn't in
-  this repo, so the labels can't be confirmed against the model. The array is not in the
-  alphabetical order a `LabelEncoder` would produce, which is worth checking before trusting a
-  specific crop name.
-
 ### Fixed since the competition
 
+- **The crop labels were in the wrong order.** The model's 22 outputs follow the alphabetical
+  label encoding of its training dataset — the same 22 labels that name the files in
+  `backend/cropTexts/` — but `allCrops` listed them in an arbitrary, pluralised order. So a
+  prediction could be reported as the wrong crop, and the growing-notes lookup (which builds a
+  filename from the display name) 404'd for most of them (`"Rices"` → `rices.txt`, which doesn't
+  exist). The list is now in label-encoding order and every name maps to an existing notes file.
 - **Predictions ran on zeroed weather.** `makeAIRequest()` called `getWeather()` and then read
   `temp` / `humidity` / `rainfall` from `localStorage` on the very next line — but `getWeather()`
   resolves asynchronously, and `land.js` clears `localStorage` on load. Every prediction was

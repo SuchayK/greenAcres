@@ -25,44 +25,21 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
-var map = L.map('map').setView([38.7946, 263.14453], 4);
+var map = L.map('map').setView([38.7946, -96.85547], 4);
 
-L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-}).addTo(map);
-
-L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+// Tiles must be served over HTTPS -- the page itself is served over HTTPS on GitHub
+// Pages, and browsers block mixed content, so the http:// tiles never loaded there.
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
 }).addTo(map);
 
 map.on('click', function(e) {
     var popup = L.popup();
-    var lat = e.latlng.lat.toFixed(2);
-    var lon = e.latlng.lng.toFixed(2);
-    if (lat > 180) {
-        lat -= 180;
-        while (lat >= 180) {
-            lat -= 180;
-        }
-    }
-    else if (lat < -180) {
-        lat += 180;
-        while (lat <= -180) {
-            lat += 180;
-        }
-    }
-    if (lon > 180) {
-        lon -= 180;
-        while (lon >= 180) {
-            lon -= 180;
-        }
-    }
-    else if (lon < -180) {
-        lon += 180;
-        while (lon <= -180) {
-            lon += 180;
-        }
-    }
+    // wrap() normalises longitude into [-180, 180] after the map has been panned
+    // across the antimeridian; latitude is already constrained to [-90, 90].
+    var latlng = e.latlng.wrap();
+    var lat = latlng.lat.toFixed(2);
+    var lon = latlng.lng.toFixed(2);
     popup
         .setLatLng(e.latlng)
         .setContent("You clicked the map at " + lat + ", " + lon)

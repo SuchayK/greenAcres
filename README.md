@@ -125,14 +125,32 @@ Honest about what a two-day competition build didn't get to:
   `90 / 42 / 43 / 6.75` in `ai.js` — only temperature, humidity and rainfall come from your
   location. We couldn't find a free soil API with the coverage we needed (see `apiLinks.txt`).
   Predictions therefore vary with climate but not with your actual soil.
-- **The second and third suggestions are wrong.** `ai.js` reads `allCrops[ind + 2]` and
-  `allCrops[ind + 4]` — neighbours in the array, not the next-highest probabilities, and they
-  run off the end of the list when the top crop is near the end. It should sort the prediction
-  vector and take the top three.
-- **`GET /predict` has no input validation** beyond a `try/except`, and `render_template` on
-  `/` won't resolve because there's no `templates/` directory. Use the static frontend.
-- **Leaflet is pinned to 0.7.3 over plain HTTP** from a CDN, which modern browsers will block on
-  an HTTPS page.
+- **The crop-to-index mapping is unverified.** The 22 model outputs are matched to the crop
+  names in `allCrops` by position, but the training notebook that fixed that ordering isn't in
+  this repo, so the labels can't be confirmed against the model. The array is not in the
+  alphabetical order a `LabelEncoder` would produce, which is worth checking before trusting a
+  specific crop name.
+
+### Fixed since the competition
+
+- **Predictions ran on zeroed weather.** `makeAIRequest()` called `getWeather()` and then read
+  `temp` / `humidity` / `rainfall` from `localStorage` on the very next line — but `getWeather()`
+  resolves asynchronously, and `land.js` clears `localStorage` on load. Every prediction was
+  made with temperature, humidity and rainfall all `0`. `getWeather()` now returns the
+  conditions and is awaited.
+- **The second and third suggestions were wrong.** `ai.js` read `allCrops[ind + 2]` and
+  `allCrops[ind + 4]` — neighbours in the array, not the next-highest probabilities — and
+  rendered `undefined` when the top crop sat near the end of the list. It now sorts the
+  prediction vector and takes the top three.
+- **`GET /predict` now validates its inputs** and returns `400` on missing or non-numeric
+  parameters and `500` on a failed prediction, instead of `200` with an error body.
+- **`/` now serves the results page** as a static file; `render_template` raised
+  `TemplateNotFound` on every request because there is no `templates/` directory. Model paths
+  also resolve relative to `ai.py`, so the service can be started from any directory.
+- **Leaflet upgraded to 1.9.4 over HTTPS.** It was pinned to 0.7.3 over plain HTTP, which
+  browsers block as mixed content on the HTTPS GitHub Pages site — the map never loaded there.
+- **The repo root served a "Hello World" placeholder** to anyone visiting the Pages site. It
+  now redirects to the app.
 
 ## Team
 

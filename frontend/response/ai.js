@@ -19,21 +19,26 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     });
-    makeAIRequest();
+    makeAIRequest().catch(error => {
+        console.error('Error:', error);
+        document.getElementById('crop1').innerText = "Couldn't reach the weather or prediction service. Please try again later, or access the landing page again.";
+    });
 });
 
 // main function!
-function makeAIRequest() {
-    getWeather();
-    const weatherArr = [Number(localStorage.getItem("temp")), Number(localStorage.getItem("humidity")), Number(localStorage.getItem("rainfall"))];
+// getWeather() has to be awaited: it writes temp/humidity/rainfall into localStorage
+// from a fetch, so reading them synchronously right after the call returned nulls and
+// the model was asked to predict on temperature=0, humidity=0, rainfall=0.
+async function makeAIRequest() {
+    const weather = await getWeather();
     const params = new URLSearchParams({
         nitrogen: 90,
         phosphorus: 42,
         potassium: 43,
-        temperature: weatherArr[0],
-        humidity: weatherArr[1],
+        temperature: weather.temp,
+        humidity: weather.humidity,
         ph: 6.75,
-        rainfall: weatherArr[2]
+        rainfall: weather.rainfall
     })
     var url = `http://127.0.0.1:5000/predict?${params.toString()}`;
     console.log("AI requested at: " + url);
@@ -45,19 +50,23 @@ function makeAIRequest() {
     })
         .then(response => response.json())
         .then(data => {
-            var highest = 0;
-            var ind = -1;
             var predictions = data.keras_prediction;
-            for (var x = 0; x < predictions.length; x++) {
-                if (predictions[x] > highest) {
-                    highest = predictions[x];
-                    ind = x;
-                }
+            if (predictions === undefined || predictions[0] === undefined) {
+                document.getElementById('crop1').innerText = "There seems to be an issue with the prediction model. Please try again later, or access the landing page again.";
+                return;
             }
-            if (predictions[0] !== undefined) {
-                document.getElementById('crop1').innerText = "The best crop in your location is " + allCrops[ind] + "!";
-                document.getElementById('crop2').innerText = "Another crop that will thrive in your area are " + allCrops[ind + 2] + ".";
-                document.getElementById('crop3').innerText = "Another crop that will thrive in your area are " + allCrops[ind + 4] + ".";
+            // Rank by probability. This used to read allCrops[ind + 2] and [ind + 4] —
+            // array neighbours rather than the next-likeliest crops, which also ran off
+            // the end of the list whenever the top crop sat near the end.
+            var ranked = predictions
+                .map(function (p, i) { return { crop: allCrops[i], score: p }; })
+                .sort(function (a, b) { return b.score - a.score; });
+            var ind = allCrops.indexOf(ranked[0].crop);
+
+            {
+                document.getElementById('crop1').innerText = "The best crop in your location is " + ranked[0].crop + "!";
+                document.getElementById('crop2').innerText = "Another crop that will thrive in your area are " + ranked[1].crop + ".";
+                document.getElementById('crop3').innerText = "Another crop that will thrive in your area are " + ranked[2].crop + ".";
                 var str = allCrops[ind];
                 str = str.toLowerCase();
                 for (var x = 0; x < str.length; x++) {
@@ -83,42 +92,38 @@ function makeAIRequest() {
                     })
                     .catch((e) => console.error(e));
             }
-            else {
-                document.getElementById('crop1').innerText = "There seems to be an issue with the prediction model. Please try again later, or access the landing page again.";
-            }
         })
         .catch(error => console.error('Error:', error));
 }
 
 // All API callings
-function getWeather() {
+// Resolves with the current conditions so the caller can feed them straight to the
+// model, and still caches them in localStorage for the rest of the page.
+async function getWeather() {
     const lat = Number(localStorage.getItem("latitude"));
     const lon = Number(localStorage.getItem("longitude"));
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m,rain`;
     console.log("Weather requested at: " + url);
-    var temp = 0;
-    var humidity = 0;
-    var rainfall = 0;
-    fetch(url)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error("Network response was not ok");
-            }
-            return response.json();
-        })
-        .then(data => {
-            const tempArr = data.hourly.temperature_2m;
-            const humidityArr = data.hourly.relative_humidity_2m;
-            const rainfallArr = data.hourly.rain;
-            const d = new Date();
-            let hour = d.getHours();
-            localStorage.setItem("temp", tempArr[hour].toFixed(2));
-            localStorage.setItem("humidity", humidityArr[hour].toFixed(2));
-            localStorage.setItem("rainfall", rainfallArr[hour].toFixed(2));
-            document.getElementById('temp').innerText = "Temperature in Celsius: " + tempArr[hour].toFixed(2);
-            document.getElementById('humid').innerText = "Humidity in percent: " + humidityArr[hour].toFixed(2);
-            document.getElementById('rain').innerText = "Rainfall in millimeters: " + rainfallArr[hour].toFixed(2);
-        });
+
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error("Network response was not ok");
+    }
+    const data = await response.json();
+
+    const hour = new Date().getHours();
+    const temp = data.hourly.temperature_2m[hour].toFixed(2);
+    const humidity = data.hourly.relative_humidity_2m[hour].toFixed(2);
+    const rainfall = data.hourly.rain[hour].toFixed(2);
+
+    localStorage.setItem("temp", temp);
+    localStorage.setItem("humidity", humidity);
+    localStorage.setItem("rainfall", rainfall);
+    document.getElementById('temp').innerText = "Temperature in Celsius: " + temp;
+    document.getElementById('humid').innerText = "Humidity in percent: " + humidity;
+    document.getElementById('rain').innerText = "Rainfall in millimeters: " + rainfall;
+
+    return { temp: temp, humidity: humidity, rainfall: rainfall };
 }
 
 function getSoil() {

@@ -9,7 +9,7 @@
 
 <p align="center">
   <img alt="1st place, Texas TSA State Conference 2025" src="https://img.shields.io/badge/%F0%9F%A5%87%201st%20Place-Texas%20TSA%20State%20Conference%202025-BF5700?style=flat-square">
-  <img alt="Top 16 at TSA Nationals 2025" src="https://img.shields.io/badge/Top%2016-TSA%20Nationals%202025-1f6feb?style=flat-square">
+  <img alt="Semifinalist, TSA Nationals 2025" src="https://img.shields.io/badge/Semifinalist-TSA%20Nationals%202025-1f6feb?style=flat-square">
 </p>
 
 <p align="center">
@@ -28,8 +28,8 @@ Built for the **TSA Software Development** event, 2024–2025 season.
 
 | Placement | Competition |
 |---|---|
-| 🥇 **1st place** | Texas TSA State Conference |
-| **Top 16** | TSA National Conference |
+| 🥇 **1st place** | Texas TSA State Conference — Software Development |
+| **Semifinalist** | TSA National Conference |
 
 ## The problem
 
@@ -125,6 +125,7 @@ Honest about what a two-day competition build didn't get to:
   `90 / 42 / 43 / 6.75` in `ai.js` — only temperature, humidity and rainfall come from your
   location. We couldn't find a free soil API with the coverage we needed (see `apiLinks.txt`).
   Predictions therefore vary with climate but not with your actual soil.
+
 ### Fixed since the competition
 
 - **The crop labels were in the wrong order.** The model's 22 outputs follow the alphabetical

@@ -25,48 +25,32 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 });
 
-var map = L.map('map').setView([38.7946, 263.14453], 4);
+// Centre on the continental US. The old value was [38.7946, 263.14453] — a
+// longitude of 263 is off the map; it should have been 263.14 - 360 = -96.86.
+var map = L.map('map').setView([38.7946, -96.86], 4);
 
-L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+// Tiles over https. The old URL was http://{s}.tile.osm.org, which browsers
+// block as mixed content on an https page — and it was added twice, stacking
+// two identical layers.
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 }).addTo(map);
 
-L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-}).addTo(map);
+map.on('click', function (e) {
+    // The old code normalised by hand, wrapping latitude to +/-180 — latitude
+    // only runs to +/-90 — while operating on strings returned by toFixed(),
+    // so the arithmetic ran on text. Leaflet's wrap() handles the map repeating
+    // horizontally when you scroll past the antimeridian.
+    var wrapped = e.latlng.wrap();
+    var lat = wrapped.lat.toFixed(2);
+    var lon = wrapped.lng.toFixed(2);
 
-map.on('click', function(e) {
-    var popup = L.popup();
-    var lat = e.latlng.lat.toFixed(2);
-    var lon = e.latlng.lng.toFixed(2);
-    if (lat > 180) {
-        lat -= 180;
-        while (lat >= 180) {
-            lat -= 180;
-        }
-    }
-    else if (lat < -180) {
-        lat += 180;
-        while (lat <= -180) {
-            lat += 180;
-        }
-    }
-    if (lon > 180) {
-        lon -= 180;
-        while (lon >= 180) {
-            lon -= 180;
-        }
-    }
-    else if (lon < -180) {
-        lon += 180;
-        while (lon <= -180) {
-            lon += 180;
-        }
-    }
-    popup
+    L.popup()
         .setLatLng(e.latlng)
         .setContent("You clicked the map at " + lat + ", " + lon)
         .openOn(map);
+
     localStorage.setItem("latitude", lat);
     localStorage.setItem("longitude", lon);
 });

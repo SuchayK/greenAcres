@@ -6,7 +6,8 @@
     <title>Green Acres</title>
     <link rel="stylesheet" href="ai.css">
     <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@400;700&display=swap" rel="stylesheet">
-    <script src="ai.js"></script>
+    <!-- defer, so the DOM exists by the time the script runs -->
+    <script src="ai.js" defer></script>
 </head>
 
 <body>
@@ -25,21 +26,33 @@
         </div>
         <div class="column" style="background-color:rgb(23,72,22);">
             <h2>Soil Quality</h2>
-            <p>Discover how much nutrition is and which plants can thrive in your soil.</p>
+            <p>These are the exact values sent to the model. Have a soil test? Enter your own
+               numbers and recalculate.</p>
+
             <table>
                 <tr>
                     <th>Soil pH</th>
-                    <th>Soil Nitrogen</th>
-                    <th>Soil Phosphorus</th>
-                    <th>Soil Potassium</th>
+                    <th>Nitrogen (kg/ha)</th>
+                    <th>Phosphorus (kg/ha)</th>
+                    <th>Potassium (kg/ha)</th>
                 </tr>
                 <tr>
-                    <td>5.5</td>
-                    <td>5%</td>
-                    <td>0.045%</td>
-                    <td>2.5%</td>
+                    <td id="out-ph">—</td>
+                    <td id="out-n">—</td>
+                    <td id="out-p">—</td>
+                    <td id="out-k">—</td>
                 </tr>
             </table>
+
+            <p id="soil-source"><small>Looking up soil data…</small></p>
+
+            <div id="soil-inputs">
+                <label>pH <input type="number" id="in-ph" step="0.1" min="0" max="14"></label>
+                <label>N <input type="number" id="in-n" step="1" min="0"></label>
+                <label>P <input type="number" id="in-p" step="1" min="0"></label>
+                <label>K <input type="number" id="in-k" step="1" min="0"></label>
+                <button class="button" id="recalc" type="button">Recalculate</button>
+            </div>
         </div>
     </div>
     <div class="row">

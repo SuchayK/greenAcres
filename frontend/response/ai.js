@@ -166,25 +166,52 @@ async function loadCropText(crop) {
     }
 }
 
+// Climate features, aggregated over the last 30 days.
+//
+// The old code read hourly.rain[currentHour] — the rainfall in one single hour,
+// which is 0 almost all of the time. The model's rainfall feature spans roughly
+// 20-300 mm, which is a monthly total, not an hourly reading. For Ames, Iowa
+// that meant sending 0 mm when the real 30-day total was 194 mm, and the model
+// dutifully answered with a desert crop. Temperature and humidity were single
+// instantaneous readings for the same reason: 28.8 C and 51% at one moment,
+// against 30-day means of 24.5 C and 80%.
+//
+// Growing conditions are a seasonal property, so all three are now averaged
+// (precipitation summed) over a 30-day window.
+const WINDOW_DAYS = 30;
+
 async function getWeather(lat, lon) {
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-        `&hourly=temperature_2m,relative_humidity_2m,rain`;
+        `&daily=precipitation_sum,temperature_2m_mean&hourly=relative_humidity_2m` +
+        `&past_days=${WINDOW_DAYS}&forecast_days=1&timezone=UTC`;
     console.log("Weather requested at: " + url);
     try {
         const res = await fetch(url);
         if (!res.ok) throw new Error("weather " + res.status);
         const data = await res.json();
-        const hour = Math.min(new Date().getHours(), data.hourly.temperature_2m.length - 1);
+
+        const rain = (data.daily.precipitation_sum || []).filter(isNum);
+        const temps = (data.daily.temperature_2m_mean || []).filter(isNum);
+        const humid = (data.hourly.relative_humidity_2m || []).filter(isNum);
+
+        if (!rain.length || !temps.length || !humid.length) throw new Error("empty climate series");
+
         return {
-            temperature: Number(data.hourly.temperature_2m[hour].toFixed(2)),
-            humidity: Number(data.hourly.relative_humidity_2m[hour].toFixed(2)),
-            rainfall: Number(data.hourly.rain[hour].toFixed(2))
+            temperature: round2(mean(temps)),
+            humidity: round2(mean(humid)),
+            rainfall: round2(sum(rain)),
+            windowDays: WINDOW_DAYS
         };
     } catch (e) {
         console.error(e);
         return null;
     }
 }
+
+const isNum = (v) => typeof v === "number" && Number.isFinite(v);
+const sum = (a) => a.reduce((x, y) => x + y, 0);
+const mean = (a) => sum(a) / a.length;
+const round2 = (v) => Number(v.toFixed(2));
 
 // Soil inputs.
 //
@@ -212,19 +239,28 @@ async function getSoil(lat, lon) {
         return soil;
     }
 
+    // SoilGrids has genuine coverage gaps — it answers 200 with mean: null over
+    // water, urban cover and some agricultural points. Ask for three depths and
+    // take the shallowest that has a value before giving up.
     const url = `https://rest.isric.org/soilgrids/v2.0/properties/query` +
-        `?lon=${lon}&lat=${lat}&property=phh2o&depth=0-5cm&value=mean`;
+        `?lon=${lon}&lat=${lat}&property=phh2o` +
+        `&depth=0-5cm&depth=5-15cm&depth=15-30cm&value=mean`;
     try {
         const res = await fetch(url);
         if (!res.ok) throw new Error("soilgrids " + res.status);
         const data = await res.json();
-        const raw = data.properties.layers[0].depths[0].values.mean;
-        if (raw !== null && raw !== undefined) {
-            soil.ph = raw / 10;          // reported as pH*10
+        const depths = data.properties.layers[0].depths || [];
+        const hit = depths.find(d => d.values && typeof d.values.mean === "number");
+        if (hit) {
+            soil.ph = hit.values.mean / 10;   // reported as pH*10
             soil.phSource = "SoilGrids";
+            soil.phDepth = hit.label;
+        } else {
+            soil.phSource = "nodata";         // reachable, but no value here
         }
     } catch (e) {
         console.error("SoilGrids lookup failed, using default pH:", e);
+        soil.phSource = "unreachable";
     }
     return soil;
 }
@@ -237,9 +273,9 @@ function readField(id, fallback) {
 }
 
 function renderWeather(w) {
-    setText('temp', "Temperature in Celsius: " + w.temperature);
-    setText('humid', "Humidity in percent: " + w.humidity);
-    setText('rain', "Rainfall in millimeters: " + w.rainfall);
+    setText('temp', `Mean temperature, last ${w.windowDays} days: ${w.temperature} °C`);
+    setText('humid', `Mean humidity, last ${w.windowDays} days: ${w.humidity}%`);
+    setText('rain', `Total rainfall, last ${w.windowDays} days: ${w.rainfall} mm`);
 }
 
 // The soil panel used to show a static table (pH 5.5, N 5%, P 0.045%, K 2.5%)
@@ -252,9 +288,11 @@ function renderSoil(s) {
     setText('out-k', s.potassium);
 
     const label = {
-        "SoilGrids": "pH from ISRIC SoilGrids for this location.",
+        "SoilGrids": `pH from ISRIC SoilGrids for this location (${s.phDepth}).`,
         "entered": "pH as you entered it.",
-        "default": "pH is a dataset default — SoilGrids was unreachable."
+        "nodata": "SoilGrids has no pH reading for this point, so pH is a dataset default.",
+        "unreachable": "SoilGrids was unreachable, so pH is a dataset default.",
+        "default": "pH is a dataset default."
     }[s.phSource];
     setText('soil-source', label + " N, P and K are your entries, or dataset estimates if left blank.");
 

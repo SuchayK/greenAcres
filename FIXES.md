@@ -45,6 +45,29 @@ Five for five, at 97–100% confidence, all matching alphabetical order exactly.
 so the two can't drift apart. `node check_crop_map.js --live` re-runs all five probes against the
 running service and fails if the order is ever disturbed again.
 
+### 0b. The climate features were the wrong quantity entirely
+
+`getWeather()` read `hourly.rain[currentHour]` — the rainfall that fell during *one hour*, which
+is 0 almost all of the time. The model's rainfall feature ranges over roughly 20–300 mm, which is
+a monthly total. Temperature and humidity were single instantaneous readings for the same reason.
+
+For Ames, Iowa the app was sending **0 mm** when the real 30-day total was **194 mm**, and 28.8 °C
+/ 51% RH at one moment against 30-day means of 24.5 °C / 80%. Given a desert's worth of rainfall,
+the model correctly answered with a dry-climate crop — every location on Earth resolved to
+Muskmelon.
+
+**Fixed:** all three are aggregated over a 30-day window — precipitation summed, temperature and
+humidity averaged. The panel labels them as such.
+
+| Site | Before | After |
+|---|---|---|
+| Ames, Iowa | Muskmelons 71% | **Jute 98%**, Rice 2% |
+| Punjab, India | Muskmelons 99.9% | **Jute 99.6%**, Maize 0.2% |
+| Kerala, India | Muskmelons 100% | **Rice 99.1%**, Coconuts 0.5% |
+
+Kerala returning rice and coconut is the check that matters — those are the two crops the region
+is actually known for, and the old code could not distinguish it from Iowa.
+
 ### 1. The model was classifying zeros on every cold load
 
 `makeAIRequest()` called `getWeather()` and then read the results from `localStorage` on the
@@ -162,6 +185,13 @@ Validation responses, confirmed live:
 
 ## Still open
 
+- **The model only knows 22 crops, all from an Indian agronomy dataset.** Kerala resolves to rice
+  and coconut correctly, but Iowa resolves to jute — wheat, soybean and the other US row crops
+  simply aren't classes it can emit. This is a dataset limitation, not a bug in the app, and it
+  can't be fixed without retraining on a wider set.
+- **SoilGrids has coverage gaps.** It answers 200 with `mean: null` at some points, including
+  parts of the US Midwest. The app requests three depths and takes the shallowest with a value,
+  then falls back to the dataset default and says which happened.
 - The **USDA price panel is static placeholder copy** — three hardcoded prices, no API behind it.
 - The **class order should really come from the model**, not a comment. The durable fix is to save
   the label encoder next to the weights at training time and load it in `ai.py`. The live check is

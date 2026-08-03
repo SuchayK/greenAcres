@@ -63,3 +63,63 @@ table, th, td {
     text-align: center;
     padding: 10px;
 }
+
+/* Panels are a fixed 50% of the viewport with 60px of padding, so anything
+   added to one clipped silently on shorter screens. */
+.column {
+    overflow: auto;
+}
+
+/* Soil entry. The stylesheet had no rules for inputs or buttons at all, so
+   these rendered as unstyled browser defaults on a dark green panel. */
+#soil-inputs {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+#soil-inputs label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.9rem;
+}
+
+#soil-inputs input {
+    width: 78px;
+    padding: 6px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+#soil-inputs input:focus {
+    outline: 2px solid #fff;
+    outline-offset: 1px;
+}
+
+#soil-inputs .button {
+    padding: 7px 16px;
+    border: 1px solid #fff;
+    border-radius: 5px;
+    background: transparent;
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+#soil-inputs .button:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+#soil-source {
+    font-size: 0.85rem;
+    opacity: 0.85;
+}
